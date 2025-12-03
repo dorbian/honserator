@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    "k8s.io/apimachinery/pkg/runtime"
 )
 
 // +kubebuilder:object:root=true
@@ -22,36 +23,17 @@ type HonseClusterList struct {
 }
 
 type HonseClusterSpec struct {
-    Version       string                 `json:"version,omitempty"`
-    Source        HonseSourceSpec        `json:"source"`
-    Build         HonseBuildSpec         `json:"build,omitempty"`
-    Registry      HonseRegistrySpec      `json:"registry"`
-    Runtime       HonseRuntimeSpec       `json:"runtime,omitempty"`
-    Observability *HonseObservabilitySpec `json:"observability,omitempty"`
+    DeploymentMode string             `json:"deploymentMode,omitempty"`
+    Images         HonseImagesSpec    `json:"images"`
+    Runtime        HonseRuntimeSpec   `json:"runtime,omitempty"`
+    Observability  *HonseObservabilitySpec `json:"observability,omitempty"`
 }
 
-type HonseSourceSpec struct {
-    RepoURL        string `json:"repoUrl"`
-    Ref            string `json:"ref,omitempty"`
-    ContextBaseDir string `json:"contextBaseDir,omitempty"`
-}
-
-type HonseBuildSpec struct {
-    Strategy   string                    `json:"strategy,omitempty"`
-    Components []HonseBuildComponentSpec `json:"components,omitempty"`
-}
-
-type HonseBuildComponentSpec struct {
-    Name       string `json:"name"`
-    ContextDir string `json:"contextDir"`
-    Dockerfile string `json:"dockerfile"`
-}
-
-type HonseRegistrySpec struct {
-    Host             string `json:"host"`
-    RepositoryPrefix string `json:"repositoryPrefix,omitempty"`
-    Insecure         bool   `json:"insecure,omitempty"`
-    SecretRef        string `json:"secretRef,omitempty"`
+type HonseImagesSpec struct {
+    Server         string `json:"server"`
+    MainFileserver string `json:"mainFileserver"`
+    ShardFileserver string `json:"shardFileserver,omitempty"`
+    Adminpanel     string `json:"adminpanel,omitempty"`
 }
 
 type HonseRuntimeSpec struct {
@@ -71,9 +53,54 @@ type HonseObservabilitySpec struct {
 
 type HonseClusterStatus struct {
     Phase           string             `json:"phase,omitempty"`
-    LastBuildCommit string             `json:"lastBuildCommit,omitempty"`
     LastBuildTime   *metav1.Time       `json:"lastBuildTime,omitempty"`
     Conditions      []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// Implement runtime.Object for HonseCluster and HonseClusterList
+func (in *HonseCluster) DeepCopyObject() runtime.Object {
+    if in == nil {
+        return nil
+    }
+    out := new(HonseCluster)
+    in.DeepCopyInto(out)
+    return out
+}
+
+func (in *HonseClusterList) DeepCopyObject() runtime.Object {
+    if in == nil {
+        return nil
+    }
+    out := new(HonseClusterList)
+    in.DeepCopyInto(out)
+    return out
+}
+
+func (in *HonseCluster) DeepCopyInto(out *HonseCluster) {
+    *out = *in
+    out.TypeMeta = in.TypeMeta
+    in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+    out.Spec = in.Spec
+    if in.Status.LastBuildTime != nil {
+        t := *in.Status.LastBuildTime
+        out.Status.LastBuildTime = &t
+    }
+    if in.Status.Conditions != nil {
+        out.Status.Conditions = make([]metav1.Condition, len(in.Status.Conditions))
+        copy(out.Status.Conditions, in.Status.Conditions)
+    }
+}
+
+func (in *HonseClusterList) DeepCopyInto(out *HonseClusterList) {
+    *out = *in
+    out.TypeMeta = in.TypeMeta
+    in.ListMeta.DeepCopyInto(&out.ListMeta)
+    if in.Items != nil {
+        out.Items = make([]HonseCluster, len(in.Items))
+        for i := range in.Items {
+            in.Items[i].DeepCopyInto(&out.Items[i])
+        }
+    }
 }
 
 func init() {
