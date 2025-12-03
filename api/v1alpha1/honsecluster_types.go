@@ -23,17 +23,17 @@ type HonseClusterList struct {
 }
 
 type HonseClusterSpec struct {
-    DeploymentMode string             `json:"deploymentMode,omitempty"`
-    Images         HonseImagesSpec    `json:"images"`
-    Runtime        HonseRuntimeSpec   `json:"runtime,omitempty"`
+    DeploymentMode string                  `json:"deploymentMode,omitempty"`
+    Images         HonseImagesSpec         `json:"images"`
+    Runtime        HonseRuntimeSpec        `json:"runtime,omitempty"`
     Observability  *HonseObservabilitySpec `json:"observability,omitempty"`
 }
 
 type HonseImagesSpec struct {
-    Server         string `json:"server"`
-    MainFileserver string `json:"mainFileserver"`
+    Server          string `json:"server"`
+    MainFileserver  string `json:"mainFileserver"`
     ShardFileserver string `json:"shardFileserver,omitempty"`
-    Adminpanel     string `json:"adminpanel,omitempty"`
+    Adminpanel      string `json:"adminpanel,omitempty"`
 }
 
 type HonseRuntimeSpec struct {
@@ -52,9 +52,9 @@ type HonseObservabilitySpec struct {
 }
 
 type HonseClusterStatus struct {
-    Phase           string             `json:"phase,omitempty"`
-    LastBuildTime   *metav1.Time       `json:"lastBuildTime,omitempty"`
-    Conditions      []metav1.Condition `json:"conditions,omitempty"`
+    Phase         string             `json:"phase,omitempty"`
+    LastBuildTime *metav1.Time       `json:"lastBuildTime,omitempty"`
+    Conditions    []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // Implement runtime.Object for HonseCluster and HonseClusterList

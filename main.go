@@ -9,6 +9,7 @@ import (
     clientgoscheme "k8s.io/client-go/kubernetes/scheme"
     ctrl "sigs.k8s.io/controller-runtime"
     "sigs.k8s.io/controller-runtime/pkg/log/zap"
+    metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
     honsev1alpha1 "git.honse.farm/astraea/honse-operator/api/v1alpha1"
     "git.honse.farm/astraea/honse-operator/controllers"
@@ -35,9 +36,11 @@ func main() {
 
     mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
         Scheme: scheme,
-        MetricsBindAddress: metricsAddr,
-        LeaderElection:     enableLeaderElection,
-        LeaderElectionID:   "honse-operator.honsefarm.io",
+        Metrics: metricsserver.Options{
+            BindAddress: metricsAddr,
+        },
+        LeaderElection: enableLeaderElection,
+        LeaderElectionID: "honse-operator.honsefarm.io",
     })
     if err != nil {
         os.Exit(1)
