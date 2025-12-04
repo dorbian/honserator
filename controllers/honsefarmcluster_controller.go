@@ -9,7 +9,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -141,6 +143,12 @@ func (r *HonseFarmClusterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	// Ensure cert-manager Certificate for external endpoints (if configured)
+	if err := r.ensureCertificates(ctx, &cluster); err != nil {
+		logger.Error(err, "failed to ensure certificates")
+		return ctrl.Result{}, err
+	}
+
 	// Set phase Ready for now
 	cluster.Status.Phase = "Ready"
 	if err := r.Status().Update(ctx, &cluster); err != nil {
@@ -149,6 +157,112 @@ func (r *HonseFarmClusterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *HonseFarmClusterReconciler) ensureCertificates(ctx context.Context, cluster *v1alpha1.HonseFarmCluster) error {
+	// If certificates are not configured, do nothing.
+	if cluster.Spec.Certificates == nil || cluster.Spec.Certificates.Mode == "" {
+		return nil
+	}
+
+	ns := cluster.Spec.Namespace
+	if ns == "" {
+		ns = "honsefarm"
+	}
+
+	// Build DNS names list from spec.Certificates plus Hosts.
+	dnsNames := make([]string, 0)
+	addName := func(name string) {
+		if name == "" {
+			return
+		}
+		for _, existing := range dnsNames {
+			if existing == name {
+				return
+			}
+		}
+		dnsNames = append(dnsNames, name)
+	}
+
+	// Explicit DNS names from spec
+	for _, n := range cluster.Spec.Certificates.DNSNames {
+		addName(n)
+	}
+
+	// Derive from Hosts if not already present
+	if cluster.Spec.Hosts != nil {
+		addName(cluster.Spec.Hosts.Server)
+		addName(cluster.Spec.Hosts.Admin)
+		addName(cluster.Spec.Hosts.CDN)
+		for _, sh := range cluster.Spec.Hosts.Shards {
+			addName(sh.Host)
+		}
+	}
+
+	// If we still have no DNS names, nothing to issue.
+	if len(dnsNames) == 0 {
+		return nil
+	}
+
+	certName := "honsefarm-tls"
+
+	// Build desired Certificate spec.
+	spec := map[string]interface{}{
+		"secretName": certName,
+		"dnsNames":   dnsNames,
+	}
+
+	if cluster.Spec.Certificates.IssuerRef != nil && cluster.Spec.Certificates.IssuerRef.Name != "" {
+		issuer := map[string]interface{}{
+			"name": cluster.Spec.Certificates.IssuerRef.Name,
+		}
+		if cluster.Spec.Certificates.IssuerRef.Kind != "" {
+			issuer["kind"] = cluster.Spec.Certificates.IssuerRef.Kind
+		}
+		spec["issuerRef"] = issuer
+	}
+
+	// Use unstructured to avoid depending on cert-manager Go types.
+	existing := &unstructured.Unstructured{}
+	existing.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "cert-manager.io",
+		Version: "v1",
+		Kind:    "Certificate",
+	})
+
+	err := r.Get(ctx, types.NamespacedName{Name: certName, Namespace: ns}, existing)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+
+		// Create new Certificate
+		cert := &unstructured.Unstructured{}
+		cert.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "cert-manager.io",
+			Version: "v1",
+			Kind:    "Certificate",
+		})
+		cert.SetNamespace(ns)
+		cert.SetName(certName)
+		// Initialize object map and set spec
+		if cert.Object == nil {
+			cert.Object = map[string]interface{}{}
+		}
+		cert.Object["spec"] = spec
+
+		if err := ctrl.SetControllerReference(cluster, cert, r.Scheme); err != nil {
+			return err
+		}
+		return r.Create(ctx, cert)
+	}
+
+	// Update existing Certificate spec if it already exists
+	if existing.Object == nil {
+		existing.Object = map[string]interface{}{}
+	}
+	existing.Object["spec"] = spec
+	return r.Update(ctx, existing)
 }
 
 func (r *HonseFarmClusterReconciler) ensureCoreServices(ctx context.Context, cluster *v1alpha1.HonseFarmCluster) error {
