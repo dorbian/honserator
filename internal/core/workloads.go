@@ -339,6 +339,15 @@ func ensureDeployment(
 		labels["honsefarm-shard"] = spec.ShardName
 	}
 
+	runAsNonRoot := true
+	allowPrivilegeEscalation := false
+	seccompProfile := &corev1.SeccompProfile{
+		Type: corev1.SeccompProfileTypeRuntimeDefault,
+	}
+	dropAllCaps := &corev1.Capabilities{
+		Drop: []corev1.Capability{"ALL"},
+	}
+
 	var existing appsv1.Deployment
 	if err := c.Get(ctx, types.NamespacedName{Name: spec.Name, Namespace: spec.Namespace}, &existing); err != nil {
 		if !errors.IsNotFound(err) {
@@ -362,6 +371,10 @@ func ensureDeployment(
 						Labels: labels,
 					},
 					Spec: corev1.PodSpec{
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsNonRoot:   &runAsNonRoot,
+							SeccompProfile: seccompProfile,
+						},
 						Containers: []corev1.Container{
 							{
 								Name:  spec.Component,
@@ -372,6 +385,11 @@ func ensureDeployment(
 									},
 								},
 								Env: spec.Env,
+								SecurityContext: &corev1.SecurityContext{
+									AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+									RunAsNonRoot:             &runAsNonRoot,
+									Capabilities:             dropAllCaps,
+								},
 								VolumeMounts: []corev1.VolumeMount{
 									{
 										Name:      "config",
@@ -425,8 +443,22 @@ func ensureDeployment(
 
 	// Update path
 	existing.Spec.Replicas = &spec.Replicas
+
+	// Ensure pod-level security context matches restricted policy
+	existing.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+		RunAsNonRoot:   &runAsNonRoot,
+		SeccompProfile: seccompProfile,
+	}
+
+	// Ensure container-level security context matches restricted policy
 	if len(existing.Spec.Template.Spec.Containers) > 0 {
 		existing.Spec.Template.Spec.Containers[0].Image = spec.Image
+		existing.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+			AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+			RunAsNonRoot:             &runAsNonRoot,
+			Capabilities:             dropAllCaps,
+		}
 	}
+
 	return c.Update(ctx, &existing)
 }
