@@ -58,6 +58,13 @@ func EnsureServerWorkload(
 		replicas = *comp.Replicas
 	}
 
+	env := []corev1.EnvVar{
+		{
+			Name:  "ASPNETCORE_ENVIRONMENT",
+			Value: "Production",
+		},
+	}
+
 	return ensureDeployment(ctx, c, scheme, cluster, &DeploymentSpec{
 		Name:            "honsefarm-server",
 		Namespace:       ns,
@@ -67,7 +74,7 @@ func EnsureServerWorkload(
 		ContainerPort:   5000,
 		ConfigMountPath: "/app/config",
 		PVC:             pvc,
-		Env:             nil, // can be extended later if needed
+		Env:             env,
 	})
 }
 
@@ -103,6 +110,13 @@ func EnsureAdminWorkload(
 		replicas = *comp.Replicas
 	}
 
+	env := []corev1.EnvVar{
+		{
+			Name:  "ASPNETCORE_ENVIRONMENT",
+			Value: "Production",
+		},
+	}
+
 	return ensureDeployment(ctx, c, scheme, cluster, &DeploymentSpec{
 		Name:            "honsefarm-adminpanel",
 		Namespace:       ns,
@@ -112,7 +126,7 @@ func EnsureAdminWorkload(
 		ContainerPort:   5000,
 		ConfigMountPath: "/app/config",
 		PVC:             pvc,
-		Env:             nil,
+		Env:             env,
 	})
 }
 
@@ -150,6 +164,13 @@ func EnsureMainFileserverWorkload(
 		replicas = *comp.Replicas
 	}
 
+	env := []corev1.EnvVar{
+		{
+			Name:  "ASPNETCORE_ENVIRONMENT",
+			Value: "Production",
+		},
+	}
+
 	return ensureDeployment(ctx, c, scheme, cluster, &DeploymentSpec{
 		Name:            "honsefarm-main-fileserver",
 		Namespace:       ns,
@@ -159,7 +180,7 @@ func EnsureMainFileserverWorkload(
 		ContainerPort:   5001,
 		ConfigMountPath: "/app/config",
 		PVC:             pvc,
-		Env:             nil,
+		Env:             env,
 	})
 }
 
@@ -197,6 +218,17 @@ func EnsureShardWorkloads(
 			replicas = *shard.Replicas
 		}
 
+		env := []corev1.EnvVar{
+			{
+				Name:  "ASPNETCORE_ENVIRONMENT",
+				Value: "Production",
+			},
+			{
+				Name:  "HONSEFARM_SHARD_NAME",
+				Value: shard.Name,
+			},
+		}
+
 		depName := fmt.Sprintf("honsefarm-shard-%s", shard.Name)
 
 		if err := ensureDeployment(ctx, c, scheme, cluster, &DeploymentSpec{
@@ -209,7 +241,7 @@ func EnsureShardWorkloads(
 			ContainerPort:   5002,
 			ConfigMountPath: "/app/config",
 			PVC:             pvc,
-			Env:             nil,
+			Env:             env,
 		}); err != nil {
 			return fmt.Errorf("ensure shard deployment %s: %w", shard.Name, err)
 		}
