@@ -77,8 +77,6 @@ func (r *HonseFarmClusterReconciler) Reconcile(ctx context.Context, req ctrl.Req
     }
 
     // TODO: deploy core HonseFarm components (server, fileservers, adminpanel)
-    // This is left intentionally minimal; you can extend it to create Deployments/Services
-    // based on cluster.Spec.Images and cluster.Spec.Registry.
 
     // Cloudflared management
     if cluster.Spec.Cloudflared != nil && cluster.Spec.Cloudflared.Enabled {

@@ -47,7 +47,7 @@ func BuildConfigMap(cluster *v1alpha1.HonseFarmCluster) *corev1.ConfigMap {
     return &corev1.ConfigMap{
         ObjectMeta: metav1.ObjectMeta{
             Name:      ConfigMapName,
-            Namespace: cluster.Namespace,
+            Namespace: cluster.Spec.Namespace,
             Labels: map[string]string{
                 "app": "cloudflared",
             },
@@ -85,10 +85,15 @@ func BuildDeployment(cluster *v1alpha1.HonseFarmCluster) *appsv1.Deployment {
         credSecretName = "cloudflared-credentials"
     }
 
+    ns := cluster.Spec.Namespace
+    if ns == "" {
+        ns = cluster.Namespace
+    }
+
     deploy := &appsv1.Deployment{
         ObjectMeta: metav1.ObjectMeta{
             Name:      DeploymentName,
-            Namespace: cluster.Namespace,
+            Namespace: ns,
             Labels: map[string]string{
                 "app": "cloudflared",
             },
