@@ -340,6 +340,7 @@ func ensureDeployment(
 	}
 
 	runAsNonRoot := true
+	runAsUser := int64(1000)
 	allowPrivilegeEscalation := false
 	seccompProfile := &corev1.SeccompProfile{
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
@@ -373,6 +374,7 @@ func ensureDeployment(
 					Spec: corev1.PodSpec{
 						SecurityContext: &corev1.PodSecurityContext{
 							RunAsNonRoot:   &runAsNonRoot,
+							RunAsUser:      &runAsUser,
 							SeccompProfile: seccompProfile,
 						},
 						Containers: []corev1.Container{
@@ -388,6 +390,7 @@ func ensureDeployment(
 								SecurityContext: &corev1.SecurityContext{
 									AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 									RunAsNonRoot:             &runAsNonRoot,
+									RunAsUser:                &runAsUser,
 									Capabilities:             dropAllCaps,
 								},
 								VolumeMounts: []corev1.VolumeMount{
@@ -447,6 +450,7 @@ func ensureDeployment(
 	// Ensure pod-level security context matches restricted policy
 	existing.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
 		RunAsNonRoot:   &runAsNonRoot,
+		RunAsUser:      &runAsUser,
 		SeccompProfile: seccompProfile,
 	}
 
@@ -456,6 +460,7 @@ func ensureDeployment(
 		existing.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 			AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 			RunAsNonRoot:             &runAsNonRoot,
+			RunAsUser:                &runAsUser,
 			Capabilities:             dropAllCaps,
 		}
 	}
